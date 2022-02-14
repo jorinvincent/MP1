@@ -46,17 +46,15 @@ public class Cook implements Runnable {
 	 * 
 	 * @return: the customer at the front of the line
 	 */
-	public Customer takeCustomerOrder() {
-		try {
-			synchronized(cookLock){
-				while (customersInLine.isEmpty()) {
-					cookLock.wait();
-				}
-
-				Customer tempCustomer = customersInLine.remove(0);
-				return tempCustomer;
+	public Customer takeCustomerOrder() throws InterruptedException {
+		synchronized(cookLock){
+			while (customersInLine.isEmpty()) {
+				cookLock.wait();
 			}
-		} catch(InterruptedException e) { return null; }
+
+			Customer tempCustomer = customersInLine.remove(0);
+			return tempCustomer;
+		}
 	}
 
 	/**
