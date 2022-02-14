@@ -35,8 +35,9 @@ public class Machines {
 	public final Food machineFoodType;
 
 	// YOUR CODE GOES HERE...
-
-
+	public static int maxCapacity;
+	private int currentCapacity = 0;
+	private Object machineLock = new Object();
 
 	/**
 	 * The constructor takes at least the name of the machines, the Food item they
@@ -45,14 +46,9 @@ public class Machines {
 	 * add code to make use of this field (and do whatever initialization etc. you
 	 * need).
 	 */
-	public Machines(MachineType machineType, Food foodIn, int countIn) {
+	public Machines(MachineType machineType, Food foodIn) {
 		this.machineType = machineType;
 		this.machineFoodType = foodIn;
-
-		// YOUR CODE GOES HERE...
-
-
-
 	}
 
 	/**
@@ -61,20 +57,52 @@ public class Machines {
 	 * parameters or return something other than Object. You will need to implement
 	 * some means to notify the calling Cook when the food item is finished.
 	 */
-	public Object makeFood() throws InterruptedException {
+	public Thread makeFood() throws InterruptedException {
 		// YOUR CODE GOES HERE...
+		Thread cookFood = new Thread(new CookAnItem(this, this.machineFoodType));
+		cookFood.start();
 
-
-
-		return new Object();
+		return cookFood;
 	}
 
 	// THIS MIGHT BE A USEFUL METHOD TO HAVE AND USE BUT IS JUST ONE IDEA
 	private class CookAnItem implements Runnable {
+
+		private final Machines machine;
+		private final Food food;
+
+		public CookAnItem(Machines machine, Food food) {
+			this.machine = machine;
+			this.food = food;
+		}
+
 		public void run() {
 			try {
 				//YOUR CODE GOES HERE...
-				 throw new InterruptedException(); // REMOVE THIS
+
+				// Waits for room in the machine
+				synchronized(machineLock) {
+					while(currentCapacity == maxCapacity){
+						machineLock.wait();
+					}
+
+					// Takes up one cooking space in the machine
+					currentCapacity++;
+				}
+
+				Simulation.logEvent(SimulationEvent.machinesCookingFood(this.machine, this.food));
+
+				// "Cooks" for the foods required time
+				Thread.sleep(this.food.cookTime10S);
+				// Frees up one cooking space in the machine once cooked
+				currentCapacity--;
+				synchronized(machineLock) {
+					machineLock.notify();
+				}
+
+				Simulation.logEvent(SimulationEvent.machinesDoneFood(this.machine, this.food));
+
+				// throw new InterruptedException(); // REMOVE THIS
 			} catch(InterruptedException e) { }
 		}
 	}

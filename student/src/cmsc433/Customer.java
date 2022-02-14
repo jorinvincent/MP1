@@ -17,6 +17,13 @@ public class Customer implements Runnable {
 
 	private static int runningCounter = 0;
 
+	// Used to communicate between cook and customer on whether their order is complete or not
+	private boolean orderComplete;
+
+	public static int maxCapacity;
+	private static int currentCapacity = 0;
+	private static Object customerLock = new Object();
+
 	/**
 	 * You can feel free modify this constructor. It must take at
 	 * least the name and order but may take other parameters if you
@@ -26,10 +33,32 @@ public class Customer implements Runnable {
 		this.name = name;
 		this.order = order;
 		this.orderNum = ++runningCounter;
+		this.orderComplete = false;
 	}
 
 	public String toString() {
 		return name;
+	}
+
+	/** @return: a customers order */
+	public List<Food> getOrder() {
+		return this.order;
+	}
+
+	/** @return: a customers order number */
+	public int getOrderNumber() {
+		return this.orderNum;
+	}
+
+	// Changes a customers check on whether their order is finished from false to true
+	public void orderCompleted() {
+		this.orderComplete = true;
+		Simulation.logEvent(SimulationEvent.customerReceivedOrder(this, this.order, this.orderNum));
+		Simulation.logEvent(SimulationEvent.customerLeavingRatsies(this));
+		currentCapacity--;
+		synchronized(customerLock) {
+			customerLock.notifyAll();
+		}
 	}
 
 	/**
@@ -40,8 +69,28 @@ public class Customer implements Runnable {
 	 */
 	public void run() {
 		// YOUR CODE GOES HERE...
+		Simulation.logEvent(SimulationEvent.customerStarting(this));
 
+		try {
+			// Waits for an open table in the Ratsies
+			synchronized(customerLock) {
+				while (currentCapacity == maxCapacity) {
+					customerLock.wait();
+				}
 
+				// Takes up one table in the Ratsies
+				currentCapacity++;
+				Simulation.logEvent(SimulationEvent.customerEnteredRatsies(this));
+			}
 
+			Simulation.logEvent(SimulationEvent.customerPlacedOrder(this, this.order, this.orderNum));
+			Simulation.nullCook.addCustomerInLine(this);
+
+			synchronized(customerLock) {
+				while (this.orderComplete != true) {
+					customerLock.wait();
+				}
+			}
+		} catch(InterruptedException e) { }
 	}
 }

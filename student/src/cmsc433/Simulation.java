@@ -14,6 +14,15 @@ public class Simulation {
 	// List to track simulation events during simulation
 	public static List<SimulationEvent> events;
 
+	//Creates machines for the sake of simulation events
+	public static Machines sodaMachine;
+	public static Machines fryMachine;
+	public static Machines grillMachine;
+	public static Machines ovenMachine;
+
+	//Creates a cook for calling methods used for simulation events
+	public static Cook nullCook;
+
 	/**
 	 * Used by other classes in the simulation to log events
 	 * 
@@ -54,8 +63,6 @@ public class Simulation {
 		 */
 		events = Collections.synchronizedList(new ArrayList<SimulationEvent>());
 
-
-
 		// Start the simulation
 		logEvent(SimulationEvent.startSimulation(numCustomers,
 			numCooks,
@@ -63,17 +70,32 @@ public class Simulation {
 			machineCapacity));
 
 		// Set things up you might need
+		sodaMachine = new Machines(Machines.MachineType.sodaMachines, FoodType.soda);
+		fryMachine = new Machines(Machines.MachineType.fryers, FoodType.fries);
+		grillMachine = new Machines(Machines.MachineType.grillPresses, FoodType.subs);
+		ovenMachine = new Machines(Machines.MachineType.ovens, FoodType.pizza);
 
+		nullCook = new Cook(null);
 
+		// Initializes the maximum capacity of all machines
+		Machines.maxCapacity = machineCapacity;
+		// Initializes the List representing customers in line
+		Cook.customersInLine = new ArrayList<Customer>();
+		// Initializes the maximum seating capacity of the Ratsies
+		Customer.maxCapacity = numTables;
 
 		// Start up machines
-
-
+		logEvent(SimulationEvent.machinesStarting(sodaMachine, sodaMachine.machineFoodType, machineCapacity));
+		logEvent(SimulationEvent.machinesStarting(fryMachine, fryMachine.machineFoodType, machineCapacity));
+		logEvent(SimulationEvent.machinesStarting(grillMachine, grillMachine.machineFoodType, machineCapacity));
+		logEvent(SimulationEvent.machinesStarting(ovenMachine, ovenMachine.machineFoodType, machineCapacity));
 
 		// Let cooks in
 		Thread[] cookThreads = new Thread[numCooks];
-
-
+		for (int i = 0; i < cookThreads.length; i++) {
+			cookThreads[i] = new Thread(new Cook("Cook " + i));
+			cookThreads[i].start();
+		}
 
 		// Build the customers.
 		Thread[] customers = new Thread[numCustomers];
@@ -130,10 +152,18 @@ public class Simulation {
 			 * Wait for customers to finish
 			 * -- you need to add some code here...
 			 */
+			int customersFinished = 0;
+			while (customersFinished < customers.length) {
+				if (customers[customersFinished].isAlive()) {
+					continue;
+				} else {
+					customersFinished++;
+				}
+			}
 
-
-
-
+			for(int i = 0; i < customers.length; i++) {
+				customers[i].join();
+			}
 
 			/*
 			 * Then send cooks home...
@@ -141,20 +171,22 @@ public class Simulation {
 			 * threads. There are other approaches though, so you can change this if you
 			 * want to.
 			 */
-			for (int i = 0; i < cookThreads.length; i++)
+			for (int i = 0; i < cookThreads.length; i++) {
 				cookThreads[i].interrupt();
-			for (int i = 0; i < cookThreads.length; i++)
+			}
+			for (int i = 0; i < cookThreads.length; i++) {
 				cookThreads[i].join();
+			}
 
 		} catch (InterruptedException e) {
 			System.out.println("Simulation thread interrupted.");
 		}
 
 		// Shut down machines
-
-
-
-
+		logEvent(SimulationEvent.machinesEnding(sodaMachine));
+		logEvent(SimulationEvent.machinesEnding(fryMachine));
+		logEvent(SimulationEvent.machinesEnding(grillMachine));
+		logEvent(SimulationEvent.machinesEnding(ovenMachine));
 
 		// Done with simulation
 		logEvent(SimulationEvent.endSimulation());
